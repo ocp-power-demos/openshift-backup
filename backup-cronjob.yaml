@@ -1,0 +1,84 @@
+kind: CronJob
+apiVersion: batch/v1beta1
+metadata:
+  name: cronjob-etcd-backup                                             
+  namespace: default
+  labels:
+    purpose: etcd-backup
+spec:
+  schedule: "*/30 * * * *"
+  startingDeadlineSeconds: 200
+  concurrencyPolicy: Forbid
+  suspend: false
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          nodeSelector:
+            node-role.kubernetes.io/master: ''
+          restartPolicy: Never
+          activeDeadlineSeconds: 200
+          #serviceAccountName:                                        
+          hostNetwork: true
+          containers:
+            - resources:
+                requests:
+                  cpu: 300m
+                  memory: 250Mi
+              terminationMessagePath: /dev/termination-log
+              name: etcd-backup
+              command:
+                - /bin/sh
+                - '-c'
+                - >-
+                  /usr/local/bin/etcd-backup.sh /mnt/backup/ocp-backup
+              securityContext:
+                privileged: true
+              imagePullPolicy: IfNotPresent
+              volumeMounts:
+                - name: certs
+                  mountPath: /etc/ssl/etcd/
+                - name: conf
+                  mountPath: /etc/etcd/
+                - name: kubeconfig
+                  mountPath: /etc/kubernetes/
+                - name: etcd-backup-script
+                  mountPath: /usr/local/bin/etcd-backup.sh
+                  subPath: etcd-backup.sh
+                - name: etcd-backup
+                  mountPath: /mnt/backup
+                - name: scripts
+                  mountPath: /usr/local/bin
+              terminationMessagePolicy: FallbackToLogsOnError
+              image: >-                                                     
+                quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:ed67f565a5d175686d5e73aedded98b8ecb7f0c7d631b6c204624ca6cde3d3a5
+          tolerations:                                                       
+            - operator: Exists
+              effect: NoSchedule
+            - operator: Exists
+              effect: NoExecute            
+          volumes:                                                        
+            - name: certs
+              hostPath:
+                path: /etc/kubernetes/static-pod-resources/etcd-member
+                type: ''
+            - name: conf
+              hostPath:
+                path: /etc/etcd
+                type: ''
+            - name: kubeconfig
+              hostPath:
+                path: /etc/kubernetes
+                type: ''
+            - name: scripts
+              hostPath:
+                path: /usr/local/bin
+                type: ''
+            - name: etcd-backup
+              persistentVolumeClaim:
+                claimName: backup-pvc
+            - name: etcd-backup-script
+              configMap:
+                name: etcd-backup-script
+                defaultMode: 493

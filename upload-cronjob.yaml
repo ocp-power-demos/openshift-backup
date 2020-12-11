@@ -1,0 +1,50 @@
+kind: CronJob
+apiVersion: batch/v1beta1
+metadata:
+  name: cronjob-upload
+  namespace: default
+  labels:
+    purpose: etcd-backup-upload
+spec:
+  schedule: "*/40 * * * *"
+  startingDeadlineSeconds: 200
+  concurrencyPolicy: Forbid
+  suspend: false
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          containers:
+            - name: upload
+              image: quay.io/bpradipt/curl-jq
+              #command: ["/bin/sh"]
+              args: ["-c", "/upload-script/upload.sh"]
+              env:
+              - name: APIKEY
+                valueFrom:
+                    secretKeyRef:
+                      name: cos-creds
+                      key: apikey
+              - name: ENDPOINT
+                value: <COS_ENDPOINT>
+              - name: BUCKET
+                value: <COS_BUCKET_NAME>
+              - name: HTTPS_PROXY
+                value: <PROXY_URL>
+              - name: HTTP_PROXY
+                value: <PROXY_URL>
+              volumeMounts:
+                - mountPath: /upload-script
+                  name: upload-script
+                - mountPath: /mnt/backup
+                  name: etcd-backup
+          restartPolicy: Never
+          volumes:
+            - name: upload-script
+              configMap:
+                name: upload-script
+                defaultMode: 0777
+            - name: etcd-backup
+              persistentVolumeClaim:
+                claimName: backup-pvc

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: backup-pv
+spec:
+  capacity:
+    storage: 15Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage-provisioner
+  claimRef:
+    name: backup-pvc
+    namespace: default
+  nfs:
+    path: /export
+    server: <NFS_SERVER>

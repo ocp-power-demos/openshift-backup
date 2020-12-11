@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: upload-script
+  namespace: default
+data:
+  upload.sh: |
+    #!/bin/sh
+    SRCDIR=/mnt/backup
+
+    TOKEN=$(curl -X "POST" "https://iam.cloud.ibm.com/oidc/token" -H "Accept: application/json" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "apikey=$APIKEY" --data-urlencode "response_type=cloud_iam" --data-urlencode "grant_type=urn:ibm:params:oauth:grant-type:apikey" | jq .access_token)
+
+    ACCESSTOKEN=$(eval echo $TOKEN)
+    for FILENAME in `ls $SRCDIR/ocp-backup*.gz`
+    do
+      OBJKEY=`basename $FILENAME`
+      curl -X "PUT" "https://$ENDPOINT/$BUCKET/$OBJKEY"  -H "Authorization: bearer $ACCESSTOKEN" -H "Content-Type: file"  -F "file=@$FILENAME"
+      echo "uploaded $FILENAME to cloud object storage"
+      rm -f $FILENAME
+    done

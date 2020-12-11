@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cos-creds
+type: Opaque
+data:
+  apikey: <IBM_CLOUD_API_KEY>
